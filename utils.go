@@ -7,29 +7,46 @@
 package main
 
 import (
+	"errors"
 	"math/rand"
 	"net/http"
-	
+	"os"
+
 	"github.com/goccy/go-json"
-	"github.com/joho/godotenv"
+	"go.uber.org/zap"
+)
+
+var (
+	envs = []string{
+		"REDIS_URI",
+	}
+	letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
 // LoadEnvVars  loads environment variables from a .env file located outside the project folder.
-func LoadEnvVars() error {
-	
-	// Load environment variables from the .env file
-	err := godotenv.Load(".env")
-	if err != nil {
-		return err
+func ValidateEnvVars() error {
+
+	var i int
+	for _, key := range envs {
+		q := os.Getenv(key)
+		if q == "" {
+			GetLogger().Errorw("missing environment variables",
+				zap.String("Key", key),
+			)
+			i++
+		}
 	}
-	
-	return nil
+
+	if i > 1 {
+		return errors.New("Missing environment variables")
+	} else {
+		return nil
+	}
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandomString(length int) string {
-	b := make([]rune, length)
+// generates a random string with lenght of l
+func NewRandomString(l int) string {
+	b := make([]rune, l)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
@@ -44,28 +61,15 @@ type jsonStruct struct {
 	Success      bool   `json:"Success"`
 }
 
-// WriteCustomJSON encodes and sends a JSON response based on the provided interface.
-func WriteCustomJSON(w http.ResponseWriter, statusCode int, val interface{}) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	
-	err := json.NewEncoder(w).Encode(val)
-	if err != nil {
-		return err
-	}
-	
-	return nil
-}
-
 // WriteJSON encodes and sends a JSON response using the JSONResponse structure.
 func WriteJSON(w http.ResponseWriter, statusCode int, response jsonStruct) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
